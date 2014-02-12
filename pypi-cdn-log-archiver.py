@@ -8,7 +8,7 @@ import tarfile
 import boto
 import boto.s3.connection
 from contextlib import contextmanager
-from datetime import date
+from datetime import datetime, timedelta
 
 
 @contextmanager
@@ -57,10 +57,17 @@ def main():
     access_key = os.environ['DHO_ACCESS_KEY']
     secret_key = os.environ['DHO_SECRET_KEY']
     bucket_name = os.environ['PYPI_LOG_BUCKET']
-    todays_date = str(date.today())
-    look_for = 'incoming/{0}'.format(todays_date)
-    save_to = 'archive/{0}/{1}'.format(date.today().year,
-                                       date.today().month)
+
+    # Look for the date to archive in the env, default to yesterday
+    if os.environ.get('PYPI_LOG_DATE', None):
+        target_date = datetime.strptime(os.environ.get('PYPI_LOG_DATE'),
+                                        '%Y-%m-%d')
+    else:
+        target_date = (datetime.today() - timedelta(days=1))
+
+    look_for = 'incoming/{0}'.format(target_date.strftime('%Y-%m-%d'))
+    save_to = 'archive/{0}/{1}'.format(target_date.year,
+                                       target_date.month)
 
     conn = boto.connect_s3(
         aws_access_key_id=access_key,
@@ -70,14 +77,20 @@ def main():
     )
 
     bucket = conn.get_bucket(bucket_name)
-
     todays_logs = collect_todays_logs(bucket, look_for)
-    bytes_written = archive_logs(bucket, todays_logs, save_to, todays_date)
-    remove_raw_logs(bucket, todays_logs)
+
+    if len(todays_logs) == 0:
+        print('No logs found at {0}'.format(look_for))
+        return 1
+
+    bytes_written = archive_logs(bucket, todays_logs, save_to,
+            target_date.strftime('%Y-%m-%d'))
 
     if bytes_written and bytes_written > 0:
         print('{0} bytes written to {1}/{2}'.format(bytes_written,
                                                     bucket_name, save_to))
+
+        remove_raw_logs(bucket, todays_logs)
         return 0
     else:
         print('Nothing written to {0}/{1}'.format(bucket_name, save_to))
