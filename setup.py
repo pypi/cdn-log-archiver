@@ -12,7 +12,7 @@ requirements = [str(r.req) for r in requirements_txt]
 readme = open(os.path.join(cwd, 'README.md')).read()
 
 setup(name='pypi-cdn-log-archiver',
-      version='0.1.3',
+      version='0.1.4',
       description='log archiver for pypi cdn logs',
       long_description=readme,
       author='Benjamin W. Smith',

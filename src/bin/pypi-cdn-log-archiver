@@ -82,7 +82,7 @@ def main():
         target_date = datetime.strptime(os.environ.get('PYPI_LOG_DATE'),
                                         '%Y-%m-%d')
     else:
-        target_date = (datetime.target_today() - timedelta(days=1))
+        target_date = (datetime.today() - timedelta(days=1))
 
     look_for = 'incoming/{0}'.format(target_date.strftime('%Y-%m-%d'))
     save_to = 'archive/{0}/{1}'.format(target_date.year,
