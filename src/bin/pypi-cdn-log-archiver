@@ -37,9 +37,9 @@ def temp_directory():
 
 def compress_logs(archive_file, temp_dir):
     with lzma.open(archive_file, 'w') as archive:
-      for log_file in glob.glob("{0}/*".format(temp_dir)):
-          with open(log_file, 'r') as log:
-              archive.write(log.read())
+        for log_file in glob.glob("{0}/*".format(temp_dir)):
+            with open(log_file, 'r') as log:
+                archive.write(log.read())
 
 
 def write_logs_to_temp(target_logs, dest):
@@ -117,7 +117,7 @@ def main():
 
     if bytes_written and bytes_written > 0:
         logger.info('{0} bytes written to {1}/{2}'.format(bytes_written,
-                                                    bucket_name, save_to))
+                                                          bucket_name, save_to))
 
         remove_raw_logs(bucket, target_logs)
         return 0
