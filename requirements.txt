@@ -1,1 +1,2 @@
 boto==2.25.0
+backports.lzma==0.0.2
