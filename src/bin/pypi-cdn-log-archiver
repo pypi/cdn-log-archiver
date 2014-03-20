@@ -4,12 +4,13 @@ import os
 import sys
 import shutil
 import logging
+import glob
 from tempfile import mkdtemp
-import tarfile
 import boto
 import boto.s3.connection
 from contextlib import contextmanager
 from datetime import datetime, timedelta
+from backports import lzma
 
 
 def setup_logger():
@@ -34,10 +35,11 @@ def temp_directory():
     shutil.rmtree(temp_dir)
 
 
-def tar_logs(tar_file, tar_dir):
-    archive = tarfile.open(tar_file, 'w:gz')
-    archive.add(tar_dir, arcname='')
-    archive.close()
+def compress_logs(archive_file, temp_dir):
+    with lzma.open(archive_file, 'w') as archive:
+        for log_file in glob.glob("{0}/*".format(temp_dir)):
+            with open(log_file, 'r') as log:
+                archive.write(log.read())
 
 
 def write_logs_to_temp(target_logs, dest):
@@ -48,15 +50,15 @@ def write_logs_to_temp(target_logs, dest):
 def archive_logs(bucket, target_logs, save_to, date):
     bytes_written = 0
     with temp_directory() as temp_dir:
-        tar_file = os.path.join(temp_dir, "../{0}.tar.gz".format(date))
+        archive_file = os.path.join(temp_dir, "../{0}.xz".format(date))
         write_logs_to_temp(target_logs, temp_dir)
-        tar_logs(tar_file, temp_dir)
+        compress_logs(archive_file, temp_dir)
 
         new_archive = bucket.new_key(os.path.join(save_to,
-                                     os.path.basename(tar_file)))
+                                     os.path.basename(archive_file)))
 
-        bytes_written = new_archive.set_contents_from_filename(tar_file)
-        os.remove(tar_file)
+        bytes_written = new_archive.set_contents_from_filename(archive_file)
+        os.remove(archive_file)
 
     return bytes_written
 
@@ -115,7 +117,7 @@ def main():
 
     if bytes_written and bytes_written > 0:
         logger.info('{0} bytes written to {1}/{2}'.format(bytes_written,
-                                                    bucket_name, save_to))
+                                                          bucket_name, save_to))
 
         remove_raw_logs(bucket, target_logs)
         return 0
