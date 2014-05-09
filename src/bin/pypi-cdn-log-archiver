@@ -38,8 +38,9 @@ def temp_directory():
 def compress_logs(archive_file, temp_dir):
     with lzma.open(archive_file, 'w') as archive:
         for log_file in glob.glob("{0}/*".format(temp_dir)):
-            with open(log_file, 'r') as log:
-                archive.write(log.read())
+            if os.path.getsize(log_file) > 0:
+                with open(log_file, 'r') as log:
+                    archive.write(log.read())
 
 
 def write_logs_to_temp(target_logs, dest):
