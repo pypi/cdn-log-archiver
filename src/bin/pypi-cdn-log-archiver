@@ -28,6 +28,12 @@ def setup_logger():
     return logger
 
 
+def get_logger():
+    logger = logging.getLogger('cdn-log-archiver')
+    logger.setLevel(int(os.environ.get('DEBUG', logging.INFO)))
+    return logger
+
+
 @contextmanager
 def temp_directory():
     temp_dir = mkdtemp()
@@ -44,10 +50,9 @@ def compress_logs(archive_file, temp_dir):
 
 
 def write_logs_to_temp(target_logs, dest):
-    logger = logging.getLogger('cdn-log-archiver')
-    logger.setLevel(int(os.environ.get('DEBUG', logging.INFO)))
-
+    logger = get_logger()
     failed = []
+
     for l in target_logs:
         logger.debug('Getting contents of: {0} and writing to {1}/{2}'.format(l.name, dest, l.name[9:]))
         try:
