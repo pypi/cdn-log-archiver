@@ -59,7 +59,7 @@ def write_logs_to_temp(target_logs, dest):
             l.get_contents_to_filename('{0}/{1}'.format(dest, l.name[9:]))
         except boto.exception.S3ResponseError, e:
             logger.warn('Failed to fetch file: {0}\nError: {1}'.format(l.name, e.message))
-            failed.append(l)
+            failed.append(l.name)
 
     return failed
 
