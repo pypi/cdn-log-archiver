@@ -46,8 +46,8 @@ def compress_logs(archive_file, temp_dir):
 
 
 def write_logs_to_temp(target_logs, dest):
-    [l.get_contents_to_filename('{0}/{1}'.format(dest, l.name[9:])) for l in
-        target_logs]
+    for l in target_logs:
+        l.get_contents_to_filename('{0}/{1}'.format(dest, l.name[9:]))
 
 
 def archive_logs(bucket, target_logs, save_to, date):
@@ -67,7 +67,8 @@ def archive_logs(bucket, target_logs, save_to, date):
 
 
 def remove_raw_logs(bucket, target_logs):
-    [bucket.delete_key(l) for l in target_logs]
+    for l in target_logs:
+        bucket.delete_key(l)
 
 
 def collect_logs(bucket, look_for):
