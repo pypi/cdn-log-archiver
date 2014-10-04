@@ -28,6 +28,12 @@ def setup_logger():
     return logger
 
 
+def get_logger():
+    logger = logging.getLogger('cdn-log-archiver')
+    logger.setLevel(int(os.environ.get('DEBUG', logging.INFO)))
+    return logger
+
+
 @contextmanager
 def temp_directory():
     temp_dir = mkdtemp()
@@ -46,15 +52,25 @@ def compress_logs(archive_file, temp_dir):
 
 
 def write_logs_to_temp(target_logs, dest):
-    [l.get_contents_to_filename('{0}/{1}'.format(dest, l.name[9:])) for l in
-        target_logs]
+    logger = get_logger()
+    failed = []
+
+    for l in target_logs:
+        logger.debug('Getting contents of: {0} and writing to {1}/{2}'.format(l.name, dest, l.name[9:]))
+        try:
+            l.get_contents_to_filename('{0}/{1}'.format(dest, l.name[9:]))
+        except boto.exception.S3ResponseError, e:
+            logger.warn('Failed to fetch file: {0}\nError: {1}'.format(l.name, e.message))
+            failed.append(l.name)
+
+    return failed
 
 
 def archive_logs(bucket, target_logs, save_to, date):
     bytes_written = 0
     with temp_directory() as temp_dir:
         archive_file = os.path.join(temp_dir, "../{0}.xz".format(date))
-        write_logs_to_temp(target_logs, temp_dir)
+        failed_logs = write_logs_to_temp(target_logs, temp_dir)
         compress_logs(archive_file, temp_dir)
 
         new_archive = bucket.new_key(os.path.join(save_to,
@@ -63,11 +79,18 @@ def archive_logs(bucket, target_logs, save_to, date):
         bytes_written = new_archive.set_contents_from_filename(archive_file)
         os.remove(archive_file)
 
-    return bytes_written
+    return failed_logs, bytes_written
 
 
-def remove_raw_logs(bucket, target_logs):
-    [bucket.delete_key(l) for l in target_logs]
+def remove_raw_logs(bucket, target_logs, failed_logs):
+    for l in target_logs:
+        if l.name in failed_logs:
+            continue
+
+        try:
+            bucket.delete_key(l)
+        except boto.exception.S3ResponseError, e:
+            continue
 
 
 def collect_logs(bucket, look_for):
@@ -115,14 +138,17 @@ def main():
         logger.warn('No logs found at {0}'.format(look_for))
         return 1
 
-    bytes_written = archive_logs(bucket, target_logs, save_to,
-                                 target_date.strftime('%Y-%m-%d'))
+    failed_logs, bytes_written = archive_logs(bucket, target_logs, save_to,
+                                              target_date.strftime('%Y-%m-%d'))
+
+    if failed_logs:
+        logger.warn('Logs that failed to download: {0}'.format(failed_logs))
 
     if bytes_written and bytes_written > 0:
         logger.info('{0} bytes written to {1}/{2}'.format(bytes_written,
                                                           bucket_name, save_to))
 
-        remove_raw_logs(bucket, target_logs)
+        remove_raw_logs(bucket, target_logs, failed_logs)
         return 0
     else:
         logger.error('Nothing written to {0}/{1}'.format(bucket_name, save_to))
