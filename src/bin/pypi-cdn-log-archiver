@@ -66,6 +66,13 @@ def write_logs_to_temp(target_logs, dest):
     return failed
 
 
+def duplicate_key_exists(bucket, key_name):
+    if bucket.lookup(key_name):
+        return True
+
+    return False
+
+
 def archive_logs(bucket, target_logs, save_to, date):
     bytes_written = 0
     with temp_directory() as temp_dir:
@@ -73,8 +80,14 @@ def archive_logs(bucket, target_logs, save_to, date):
         failed_logs = write_logs_to_temp(target_logs, temp_dir)
         compress_logs(archive_file, temp_dir)
 
-        new_archive = bucket.new_key(os.path.join(save_to,
-                                     os.path.basename(archive_file)))
+        new_key_name = os.path.join(save_to, os.path.basename(archive_file))
+
+        if duplicate_key_exists(bucket, new_key_name):
+            logger.error('Refusing to upload duplicate archive: {0}'.format(archive_file))
+            os.remove(archive_file)
+            return failed_logs, bytes_written
+
+        new_archive = bucket.new_key(new_key_name)
 
         bytes_written = new_archive.set_contents_from_filename(archive_file)
         os.remove(archive_file)
