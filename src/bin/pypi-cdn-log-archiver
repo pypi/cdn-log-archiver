@@ -74,6 +74,8 @@ def duplicate_key_exists(bucket, key_name):
 
 
 def archive_logs(bucket, target_logs, save_to, date):
+    logger = get_logger()
+
     bytes_written = 0
     with temp_directory() as temp_dir:
         archive_file = os.path.join(temp_dir, "../{0}.xz".format(date))
